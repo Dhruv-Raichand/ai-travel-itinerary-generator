@@ -1,7 +1,23 @@
-node_modules
+# dependencies
+node_modules/
+
+# production
+dist/
+build/
+
+# env files
 .env
-dist
-build
-uploads
-coverage
+.env.local
+.env.production
+
+# logs
+logs
+*.log
+
+# editor
+.vscode/
+.idea/
+
+# OS
 .DS_Store
+Thumbs.db
