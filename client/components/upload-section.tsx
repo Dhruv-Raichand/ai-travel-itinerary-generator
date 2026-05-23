@@ -15,6 +15,9 @@ interface UploadedFile {
 export function UploadSection() {
   const [isDragging, setIsDragging] = useState(false);
   const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [generatedItinerary, setGeneratedItinerary] = useState<any>(null);
+  const [bookingText, setBookingText] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -58,31 +61,39 @@ export function UploadSection() {
     }
   }, []);
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files;
-    if (selectedFiles && selectedFiles.length > 0) {
-      const newFile: UploadedFile = {
-        name: selectedFiles[0].name,
-        size: formatFileSize(selectedFiles[0].size),
-        status: "uploading",
-      };
-      setFiles((prev) => [...prev, newFile]);
+  // const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const selectedFiles = e.target.files;
+  //   if (selectedFiles && selectedFiles.length > 0) {
+  //     const newFile: UploadedFile = {
+  //       name: selectedFiles[0].name,
+  //       size: formatFileSize(selectedFiles[0].size),
+  //       status: "uploading",
+  //     };
+  //     setFiles((prev) => [...prev, newFile]);
 
-      setTimeout(() => {
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.name === newFile.name ? { ...f, status: "processing" } : f,
-          ),
-        );
-        setTimeout(() => {
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.name === newFile.name ? { ...f, status: "complete" } : f,
-            ),
-          );
-        }, 2000);
-      }, 1500);
-    }
+  //     setTimeout(() => {
+  //       setFiles((prev) =>
+  //         prev.map((f) =>
+  //           f.name === newFile.name ? { ...f, status: "processing" } : f,
+  //         ),
+  //       );
+  //       setTimeout(() => {
+  //         setFiles((prev) =>
+  //           prev.map((f) =>
+  //             f.name === newFile.name ? { ...f, status: "complete" } : f,
+  //           ),
+  //         );
+  //       }, 2000);
+  //     }, 1500);
+  //   }
+  // };
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    alert("File uploaded. Please verify or edit extracted text below.");
+
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setBookingText(`Sample booking from file: ${file.name}`);
   };
 
   const removeFile = (name: string) => {
@@ -93,6 +104,49 @@ export function UploadSection() {
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const handleGenerate = async () => {
+    try {
+      if (!bookingText.trim()) {
+        alert("Please paste booking text first");
+        return;
+      }
+
+      setLoading;
+
+      const token = localStorage.getItem("token");
+
+      const res = await fetch(
+        "http://localhost:5000/api/itineraries/generate",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            bookingText,
+          }),
+        },
+      );
+
+      const data = await res.json();
+
+      const itinerary = data?.data?.itinerary;
+
+      if (!itinerary) {
+        alert(data?.message || "Failed to generate itinerary");
+        return;
+      }
+
+      setGeneratedItinerary(itinerary);
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -115,7 +169,7 @@ export function UploadSection() {
           onDragOver={handleDrag}
           onDrop={handleDrop}
           className={cn(
-            "relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all",
+            "relative flex min-h-50 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all",
             isDragging ?
               "border-primary bg-primary/10"
             : "border-border hover:border-primary/50 hover:bg-secondary/50",
@@ -188,11 +242,91 @@ export function UploadSection() {
             ))}
           </div>
         )}
+        <textarea
+          className="w-full min-h-30 rounded-lg border border-border bg-background p-3 text-sm"
+          placeholder="Paste booking details here..."
+          value={bookingText}
+          onChange={(e) => {
+            console.log(e.target.value);
+            setBookingText(e.target.value);
+          }}
+        />
 
-        <Button className="w-full" size="lg">
+        <Button
+          className="w-full"
+          size="lg"
+          onClick={handleGenerate}
+          disabled={loading}>
           <Sparkles className="mr-2 h-4 w-4" />
-          Generate Itinerary
+          {loading ? "Generating..." : "Generate Itinerary"}
         </Button>
+        {generatedItinerary && (
+          <div className="rounded-xl border border-border p-4 space-y-4">
+            <h3 className="text-lg font-semibold">
+              {generatedItinerary.tripSummary?.title}
+            </h3>
+
+            <p className="text-sm text-muted-foreground">
+              Destination: {generatedItinerary.tripSummary?.destination}
+            </p>
+
+            <p className="text-sm">
+              {generatedItinerary.tripSummary?.overview}
+            </p>
+
+            <div>
+              <h4 className="font-medium mb-2">Flights</h4>
+
+              {generatedItinerary.flights?.map((flight: any, idx: number) => (
+                <div key={idx} className="rounded-lg bg-secondary p-3 mb-2">
+                  <p>
+                    {flight.airline} ({flight.flightNumber})
+                  </p>
+
+                  <p className="text-sm text-muted-foreground">
+                    {flight.from} → {flight.to}
+                  </p>
+                </div>
+              ))}
+              {generatedItinerary.hotels?.map((hotel: any, idx: number) => (
+                <div key={idx} className="rounded-lg bg-secondary p-3 mb-2">
+                  <p className="font-medium">{hotel.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {hotel.location}
+                  </p>
+                  <p className="text-xs">
+                    {hotel.checkIn} → {hotel.checkOut}
+                  </p>
+                </div>
+              ))}
+              {generatedItinerary.dayWiseItinerary?.map(
+                (day: any, idx: number) => (
+                  <div key={idx} className="rounded-lg bg-secondary p-3 mb-2">
+                    <p className="font-medium">
+                      Day {day.day}: {day.title}
+                    </p>
+                    <ul className="list-disc ml-5 text-sm text-muted-foreground">
+                      {day.activities?.map((act: string, i: number) => (
+                        <li key={i}>{act}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ),
+              )}
+              {generatedItinerary.recommendations?.map(
+                (rec: any, idx: number) => (
+                  <div key={idx} className="rounded-lg bg-secondary p-3 mb-2">
+                    <p className="font-medium">{rec.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {rec.category}
+                    </p>
+                    <p className="text-sm">{rec.description}</p>
+                  </div>
+                ),
+              )}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

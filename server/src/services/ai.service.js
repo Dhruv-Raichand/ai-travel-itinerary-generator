@@ -3,9 +3,8 @@ import { env } from "../config/env.js";
 import { ApiError } from "../utils/ApiError.js";
 import { parseJsonFromText } from "../utils/parseJson.js";
 
-const client = env.geminiApiKey
-  ? new GoogleGenerativeAI(env.geminiApiKey)
-  : null;
+const client =
+  env.geminiApiKey ? new GoogleGenerativeAI(env.geminiApiKey) : null;
 
 const ITINERARY_SCHEMA = `{
   "tripSummary": {
@@ -58,7 +57,7 @@ export const generateItineraryFromBooking = async (bookingText) => {
   if (!client) throw new ApiError(503, "AI service not configured");
 
   const model = client.getGenerativeModel({
-    model: "gemini-2.0-flash",
+    model: "gemini-1.5-flash-latest",
     generationConfig: { responseMimeType: "application/json" },
   });
 
@@ -76,80 +75,80 @@ Raw booking text:
 ${bookingText}
 """`;
 
-try {
-  const result = await model.generateContent(prompt);
+  try {
+    const result = await model.generateContent(prompt);
 
-  const text = result.response.text();
+    const text = result.response.text();
 
-  const parsed = parseJsonFromText(text);
+    const parsed = parseJsonFromText(text);
 
-  return normalizeItinerary(parsed);
-} catch (error) {
-  console.error("Gemini generation failed:", error);
+    return normalizeItinerary(parsed);
+  } catch (error) {
+    console.error("Gemini generation failed:", error);
 
-  return normalizeItinerary({
-    tripSummary: {
-      title: "Demo Dubai Trip",
-      destination: "Dubai",
-      startDate: "2026-06-10",
-      endDate: "2026-06-15",
-      travelers: "2 Adults",
-      overview:
-        "A relaxing Dubai vacation with sightseeing, shopping, and luxury stay.",
-    },
-    flights: [
-      {
-        airline: "Emirates",
-        flightNumber: "EK511",
-        from: "Delhi",
-        to: "Dubai",
-        departure: "2026-06-10 10:00",
-        arrival: "2026-06-10 12:30",
-        class: "Economy",
+    return normalizeItinerary({
+      tripSummary: {
+        title: "Demo Dubai Trip",
+        destination: "Dubai",
+        startDate: "2026-06-10",
+        endDate: "2026-06-15",
+        travelers: "2 Adults",
+        overview:
+          "A relaxing Dubai vacation with sightseeing, shopping, and luxury stay.",
       },
-    ],
-    hotels: [
-      {
-        name: "Atlantis The Palm",
-        location: "Dubai",
-        checkIn: "2026-06-10",
-        checkOut: "2026-06-15",
-        roomType: "Deluxe Room",
-        nights: 5,
-      },
-    ],
-    dayWiseItinerary: [
-      {
-        day: 1,
-        date: "2026-06-10",
-        title: "Arrival and Check-in",
-        activities: [
-          "Arrive in Dubai",
-          "Hotel check-in",
-          "Evening Marina walk",
-        ],
-      },
-      {
-        day: 2,
-        date: "2026-06-11",
-        title: "City Tour",
-        activities: [
-          "Visit Burj Khalifa",
-          "Dubai Mall",
-          "Dubai Fountain Show",
-        ],
-      },
-    ],
-    recommendations: [
-      {
-        category: "Dining",
-        title: "Try Local Emirati Cuisine",
-        description:
-          "Visit local restaurants for authentic Middle Eastern dishes.",
-      },
-    ],
-  });
-}
+      flights: [
+        {
+          airline: "Emirates",
+          flightNumber: "EK511",
+          from: "Delhi",
+          to: "Dubai",
+          departure: "2026-06-10 10:00",
+          arrival: "2026-06-10 12:30",
+          class: "Economy",
+        },
+      ],
+      hotels: [
+        {
+          name: "Atlantis The Palm",
+          location: "Dubai",
+          checkIn: "2026-06-10",
+          checkOut: "2026-06-15",
+          roomType: "Deluxe Room",
+          nights: 5,
+        },
+      ],
+      dayWiseItinerary: [
+        {
+          day: 1,
+          date: "2026-06-10",
+          title: "Arrival and Check-in",
+          activities: [
+            "Arrive in Dubai",
+            "Hotel check-in",
+            "Evening Marina walk",
+          ],
+        },
+        {
+          day: 2,
+          date: "2026-06-11",
+          title: "City Tour",
+          activities: [
+            "Visit Burj Khalifa",
+            "Dubai Mall",
+            "Dubai Fountain Show",
+          ],
+        },
+      ],
+      recommendations: [
+        {
+          category: "Dining",
+          title: "Try Local Emirati Cuisine",
+          description:
+            "Visit local restaurants for authentic Middle Eastern dishes.",
+        },
+      ],
+    });
+  }
 };
 
 const normalizeItinerary = (data) => ({
@@ -163,10 +162,8 @@ const normalizeItinerary = (data) => ({
   },
   flights: Array.isArray(data.flights) ? data.flights : [],
   hotels: Array.isArray(data.hotels) ? data.hotels : [],
-  dayWiseItinerary: Array.isArray(data.dayWiseItinerary)
-    ? data.dayWiseItinerary
-    : [],
-  recommendations: Array.isArray(data.recommendations)
-    ? data.recommendations
-    : [],
+  dayWiseItinerary:
+    Array.isArray(data.dayWiseItinerary) ? data.dayWiseItinerary : [],
+  recommendations:
+    Array.isArray(data.recommendations) ? data.recommendations : [],
 });
